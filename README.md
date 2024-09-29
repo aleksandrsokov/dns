@@ -13,8 +13,9 @@ newdns.lab
 
 Так же настроен Split-DNS  
 
-client 
+client  
 доступны: www.newdns.lab и web1.dns.lab  
 не доступны: web2.dns.lab
 
-client2 видит всю зону dns.lab и не видит зону newdns.lab
+client2  
+видит всю зону dns.lab и не видит зону newdns.lab
