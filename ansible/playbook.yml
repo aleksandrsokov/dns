@@ -1,0 +1,99 @@
+---
+- name: DNS
+  hosts: all
+  become: true
+  tasks:
+
+  - name: install packages
+    dnf: 
+      name:
+        - bind
+        - bind-utils
+      state: latest 
+      update_cache: true  
+
+  - name: copy transferkey to all servers and the client
+    copy: 
+      src: provisioning/named.zonetransfer.key 
+      dest: /etc/named.zonetransfer.key 
+      owner: root 
+      group: named 
+      mode: 0644
+
+  - name: copy master-named.conf 
+    copy: 
+      src: provisioning/master-named.conf 
+      dest: /etc/named.conf 
+      owner: root 
+      group: named 
+      mode: 0640
+    when: (ansible_hostname == "ns01")
+
+  - name: copy slave-named.conf 
+    copy: 
+      src: provisioning/slave-named.conf 
+      dest: /etc/named.conf 
+      owner: root 
+      group: named 
+      mode: 0640
+    when: (ansible_hostname == "ns02")
+
+  - name: NS block
+    block:
+    - name: copy zones
+      copy: 
+        src: "{{ item }}" 
+        dest: /etc/named/ 
+        owner: root 
+        group: named 
+        mode: 0660
+      with_fileglob:
+        - "provisioning/named.d*"
+        - "provisioning/named.newdns.lab"
+
+    - name: copy resolv.conf to the servers
+      template: 
+        src: provisioning/servers-resolv.conf.j2 
+        dest: /etc/resolv.conf 
+        owner: root 
+        group: root 
+        mode: 0644
+    - name: set /etc/named permissions
+      file: 
+        path: /etc/named 
+        owner: root 
+        group: named 
+        mode: 0670
+
+    - name: ensure named is running and enabled
+      service: 
+        name: named 
+        state: restarted 
+        enabled: yes
+    when: (ansible_hostname == "ns01" or ansible_hostname == "ns02")
+
+  - name: clients block
+    block:
+    - name: copy resolv.conf to the client
+      copy: 
+        src: provisioning/client-resolv.conf 
+        dest: /etc/resolv.conf 
+        owner: root 
+        group: root 
+        mode: 0644
+    - name: copy rndc conf file
+      copy: 
+        src: provisioning/rndc.conf 
+        dest: /home/vagrant/rndc.conf 
+        owner: vagrant 
+        group: vagrant 
+        mode: 0644
+    - name: copy motd to the client
+      copy: 
+        src: provisioning/client-motd 
+        dest: /etc/motd 
+        owner: root 
+        group: root 
+        mode: 0644
+    when: (ansible_hostname == "client" or ansible_hostname == "client2")
+
